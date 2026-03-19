@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+  <section>
+    <h2>Your Regret Analysis</h2>
+    <p><strong>Input:</strong> {{ record.raw_text }}</p>
+    <p><strong>Amount:</strong> {{ record.amount }}</p>
+    <p><strong>Frequency:</strong> {{ record.frequency }}</p>
+    <p><strong>Years:</strong> {{ record.years }}</p>
+    <p><strong>Crypto:</strong> {{ record.crypto_symbol }}</p>
+    <p><strong>Crypto CAGR used:</strong> {{ cagr * 100 }}%</p>
+    <p><strong>Total spent:</strong> {{ record.spent_total | round(2) }}</p>
+    <p><strong>Invested value:</strong> {{ record.invested_value | round(2) }}</p>
+    <p><strong>Regret score:</strong> {{ record.regret_score }} / 100 ({{ category }})</p>
+    <hr>
+    <h3>Cumulative across all submissions</h3>
+    <p><strong>Total spent:</strong> {{ total_spent | round(2) }}</p>
+    <p><strong>Total invested value (crypto):</strong> {{ total_invested | round(2) }}</p>
+    <p><strong>Total opportunity cost:</strong> {{ total_opportunity_cost | round(2) }}</p>
+    <a href="/">Run another decision</a>
+  </section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+  <section>
+    <p>Enter a purchase or expense and compare it to crypto growth (BTC/ETH).</p>
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+      <div class="field"><label>Decision text</label><input name="decision" placeholder="e.g. Daily coffee R30" /></div>
+      <div class="field"><label>Amount</label><input name="amount" placeholder="e.g. 1200" /></div>
+      <div class="field"><label>Frequency</label>
+        <select name="frequency">
+          <option value="one-time">One-time</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="field"><label>Years</label><input name="years" type="number" min="1" value="1" /></div>
+      <div class="field"><label>Crypto</label>
+        <select name="crypto_symbol"><option>BTC</option><option>ETH</option></select>
+      </div>
+      <button type="submit">Calculate Regret</button>
+    </form>
+  </section>
+{% endblock %}

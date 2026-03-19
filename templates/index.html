@@ -1,26 +1,70 @@
 {% extends 'base.html' %}
 {% block content %}
-  <section>
-    <p>Enter a purchase or expense and compare it to crypto growth (BTC/ETH).</p>
+
+  <div class="features">
+    <div class="feature-item">
+      <span class="icon">📈</span>
+      <h3>Real Crypto Returns</h3>
+      <p>Compare your spending against live BTC &amp; ETH growth rates</p>
+    </div>
+    <div class="feature-item">
+      <span class="icon">🧮</span>
+      <h3>Regret Score</h3>
+      <p>A 0–100 opportunity cost rating using 2+ behavioral factors</p>
+    </div>
+    <div class="feature-item">
+      <span class="icon">📊</span>
+      <h3>Visual Insight</h3>
+      <p>Interactive charts that make the opportunity cost viscerally real</p>
+    </div>
+  </div>
+
+  <div class="card card-glow">
+    <p class="section-title">Enter a financial decision</p>
+
     {% if error %}
       <div class="error">{{ error }}</div>
     {% endif %}
+
     <form method="post">
-      <div class="field"><label>Decision text</label><input name="decision" placeholder="e.g. Daily coffee R30" /></div>
-      <div class="field"><label>Amount</label><input name="amount" placeholder="e.g. 1200" /></div>
-      <div class="field"><label>Frequency</label>
-        <select name="frequency">
-          <option value="one-time">One-time</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
+      <div class="form-grid">
+
+        <div class="field">
+          <label>What did you spend on?</label>
+          <input name="decision" placeholder="e.g. Daily coffee, Netflix subscription, gym membership…" />
+        </div>
+
+        <div class="field">
+          <label>Amount (R)</label>
+          <input name="amount" placeholder="e.g. 350" />
+        </div>
+
+        <div class="field">
+          <label>Frequency</label>
+          <select name="frequency">
+            <option value="one-time">One-time</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Over how many years?</label>
+          <input name="years" type="number" min="1" value="5" />
+        </div>
+
+        <div class="field">
+          <label>Compare against</label>
+          <select name="crypto_symbol">
+            <option value="BTC">Bitcoin (BTC)</option>
+            <option value="ETH">Ethereum (ETH)</option>
+          </select>
+        </div>
+
       </div>
-      <div class="field"><label>Years</label><input name="years" type="number" min="1" value="1" /></div>
-      <div class="field"><label>Crypto</label>
-        <select name="crypto_symbol"><option>BTC</option><option>ETH</option></select>
-      </div>
-      <button type="submit">Calculate Regret</button>
+      <button class="btn" type="submit">Calculate My Regret →</button>
     </form>
-  </section>
+  </div>
+
 {% endblock %}

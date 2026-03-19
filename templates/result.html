@@ -1,21 +1,262 @@
 {% extends 'base.html' %}
 {% block content %}
-  <section>
-    <h2>Your Regret Analysis</h2>
-    <p><strong>Input:</strong> {{ record.raw_text }}</p>
-    <p><strong>Amount:</strong> {{ record.amount }}</p>
-    <p><strong>Frequency:</strong> {{ record.frequency }}</p>
-    <p><strong>Years:</strong> {{ record.years }}</p>
-    <p><strong>Crypto:</strong> {{ record.crypto_symbol }}</p>
-    <p><strong>Crypto CAGR used:</strong> {{ cagr * 100 }}%</p>
-    <p><strong>Total spent:</strong> {{ record.spent_total | round(2) }}</p>
-    <p><strong>Invested value:</strong> {{ record.invested_value | round(2) }}</p>
-    <p><strong>Regret score:</strong> {{ record.regret_score }} / 100 ({{ category }})</p>
-    <hr>
-    <h3>Cumulative across all submissions</h3>
-    <p><strong>Total spent:</strong> {{ total_spent | round(2) }}</p>
-    <p><strong>Total invested value (crypto):</strong> {{ total_invested | round(2) }}</p>
-    <p><strong>Total opportunity cost:</strong> {{ total_opportunity_cost | round(2) }}</p>
-    <a href="/">Run another decision</a>
-  </section>
+
+  {# ── Score hero card ── #}
+  <div class="card card-glow score-card">
+    <p class="section-title">Regret Score</p>
+    <div class="score-number" style="color:
+      {% if record.regret_score <= 20 %}#34d399
+      {% elif record.regret_score <= 50 %}#fbbf24
+      {% elif record.regret_score <= 80 %}#fb923c
+      {% else %}#f87171{% endif %}">
+      {{ record.regret_score }}<span class="score-denom">/100</span>
+    </div>
+    <div style="margin-top: 0.75rem;">
+      <span class="badge
+        {% if record.regret_score <= 20 %}badge-green
+        {% elif record.regret_score <= 50 %}badge-yellow
+        {% elif record.regret_score <= 80 %}badge-orange
+        {% else %}badge-red{% endif %}">
+        {{ category }}
+      </span>
+    </div>
+    <div class="meta-row">
+      <span>{{ record.raw_text }}</span>
+      <span class="meta-sep">•</span>
+      <span>{{ record.frequency }}</span>
+      <span class="meta-sep">•</span>
+      <span>{{ record.years | int }} yr{% if record.years > 1 %}s{% endif %}</span>
+      <span class="meta-sep">•</span>
+      <span>vs {{ record.crypto_symbol }}</span>
+      <span class="meta-sep">•</span>
+      <span>{{ (cagr * 100) | round(1) }}% CAGR</span>
+    </div>
+  </div>
+
+  {# ── Key stats ── #}
+  <div class="stat-grid">
+    <div class="stat-card red">
+      <div class="stat-label">Total Spent</div>
+      <div class="stat-value">{{ record.spent_total | currency }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">If Invested ({{ record.crypto_symbol }})</div>
+      <div class="stat-value">{{ record.invested_value | currency }}</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-label">Opportunity Cost</div>
+      <div class="stat-value">{{ (record.invested_value - record.spent_total) | currency }}</div>
+    </div>
+  </div>
+
+  {# ── Growth line chart ── #}
+  <div class="card">
+    <p class="section-title">Cumulative Growth Over Time</p>
+    <div class="chart-wrap">
+      <canvas id="growthChart"></canvas>
+    </div>
+  </div>
+
+  {# ── Score gauge + bar comparison ── #}
+  <div class="charts-row">
+    <div class="card">
+      <p class="section-title">Regret Score</p>
+      <div class="chart-wrap-sm">
+        <canvas id="scoreChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <p class="section-title">Final Comparison</p>
+      <div class="chart-wrap-sm">
+        <canvas id="compChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {# ── All-time totals ── #}
+  {% if total_opportunity_cost > 0 %}
+  <div class="card">
+    <p class="section-title">All Submissions — Cumulative Totals</p>
+    <div class="stat-grid" style="margin-bottom: 0;">
+      <div class="stat-card red" style="background: transparent; border-color: rgba(248,113,113,0.15);">
+        <div class="stat-label">Total Spent</div>
+        <div class="stat-value" style="font-size: 1.35rem;">{{ total_spent | currency }}</div>
+      </div>
+      <div class="stat-card green" style="background: transparent; border-color: rgba(52,211,153,0.15);">
+        <div class="stat-label">Total If Invested</div>
+        <div class="stat-value" style="font-size: 1.35rem;">{{ total_invested | currency }}</div>
+      </div>
+      <div class="stat-card purple" style="background: transparent; border-color: rgba(167,139,250,0.15);">
+        <div class="stat-label">Total Opportunity Cost</div>
+        <div class="stat-value" style="font-size: 1.35rem;">{{ total_opportunity_cost | currency }}</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <a href="/" class="back-link">← Calculate another decision</a>
+
+  <script>
+    const d = {{ chart_data | safe }};
+
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.font.size = 12;
+
+    // ── 1. Growth line chart ──
+    new Chart(document.getElementById('growthChart'), {
+      type: 'line',
+      data: {
+        labels: d.years.map(y => y === 0 ? 'Start' : 'Year ' + y),
+        datasets: [
+          {
+            label: 'If Invested ({{ record.crypto_symbol }})',
+            data: d.invested,
+            borderColor: '#7c3aed',
+            backgroundColor: 'rgba(124,58,237,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: d.years.length <= 6 ? 5 : 3,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#7c3aed',
+            borderWidth: 2.5,
+          },
+          {
+            label: 'Spent',
+            data: d.spent,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239,68,68,0.06)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: d.years.length <= 6 ? 5 : 3,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#ef4444',
+            borderWidth: 2.5,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
+          },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: ctx => '  ' + ctx.dataset.label + ':  R' +
+                ctx.parsed.y.toLocaleString(undefined, { maximumFractionDigits: 0 })
+            }
+          }
+        },
+        scales: {
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: {
+              callback: v => 'R' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M'
+                             : v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
+            }
+          },
+          x: { grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+
+    // ── 2. Doughnut score gauge ──
+    const score = d.regret_score;
+    const scoreColor = score <= 20 ? '#10b981' : score <= 50 ? '#f59e0b' : score <= 80 ? '#f97316' : '#ef4444';
+
+    new Chart(document.getElementById('scoreChart'), {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [score, 100 - score],
+          backgroundColor: [scoreColor, '#1e293b'],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }
+      },
+      plugins: [{
+        id: 'centerText',
+        afterDraw(chart) {
+          const { ctx, chartArea: { width, height, left, top } } = chart;
+          ctx.save();
+          ctx.font = `bold ${Math.min(width, height) * 0.22}px Inter, sans-serif`;
+          ctx.fillStyle = scoreColor;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(score, left + width / 2, top + height / 2 - 10);
+          ctx.font = `500 ${Math.min(width, height) * 0.08}px Inter, sans-serif`;
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('out of 100', left + width / 2, top + height / 2 + Math.min(width,height) * 0.13);
+          ctx.restore();
+        }
+      }]
+    });
+
+    // ── 3. Bar comparison chart ──
+    new Chart(document.getElementById('compChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Total Spent', 'If Invested', 'Opportunity Cost'],
+        datasets: [{
+          data: [d.spent_total, d.invested_value, d.opportunity_cost],
+          backgroundColor: [
+            'rgba(239,68,68,0.65)',
+            'rgba(124,58,237,0.65)',
+            'rgba(6,182,212,0.65)'
+          ],
+          borderColor: [
+            '#ef4444', '#7c3aed', '#06b6d4'
+          ],
+          borderWidth: 1.5,
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: ctx => '  R' + ctx.parsed.y.toLocaleString(undefined, { maximumFractionDigits: 0 })
+            }
+          }
+        },
+        scales: {
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: {
+              callback: v => 'R' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M'
+                             : v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
+            }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  </script>
+
 {% endblock %}

@@ -1,3 +1,4 @@
+import json
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -26,6 +27,10 @@ with app.app_context():
     db.create_all()
 
 crypto_client = CryptoCompareClient()
+
+@app.template_filter('currency')
+def currency_filter(value):
+    return f"R{value:,.0f}"
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -86,11 +91,34 @@ def result():
     else:
         category = 'High regret'
 
+    # Build year-by-year chart data
+    cagr_val = round(crypto_client.fetch_annual_crypto_cagr(record.crypto_symbol) or 0.20, 4)
+    n_years = max(1, int(record.years))
+    chart_years = list(range(0, n_years + 1))
+    chart_spent_data = [0.0]
+    chart_invested_data = [0.0]
+    for y in range(1, n_years + 1):
+        s = compute_future_value(record.amount, record.frequency, y, contributions=False)
+        iv = compute_future_value(record.amount, record.frequency, y, rate=cagr_val, contributions=True)
+        chart_spent_data.append(round(s, 2))
+        chart_invested_data.append(round(iv, 2))
+
+    chart_data = json.dumps({
+        'years': chart_years,
+        'spent': chart_spent_data,
+        'invested': chart_invested_data,
+        'regret_score': record.regret_score,
+        'spent_total': round(record.spent_total, 2),
+        'invested_value': round(record.invested_value, 2),
+        'opportunity_cost': round(max(0, record.invested_value - record.spent_total), 2),
+    })
+
     return render_template('result.html', record=record, total_spent=total_spent,
                            total_invested=total_invested,
                            total_opportunity_cost=total_opportunity_cost,
                            category=category,
-                           cagr=round(crypto_client.fetch_annual_crypto_cagr(record.crypto_symbol) or 0.20, 4))
+                           cagr=cagr_val,
+                           chart_data=chart_data)
 
 if __name__ == '__main__':
     app.run(debug=True)

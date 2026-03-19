@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from services.api_client import CryptoCompareClient
-from utils import parse_amount_frequency, compute_future_value, compute_regret_score
+from utils import parse_amount_frequency, compute_future_value, compute_regret_score, generate_chart_data
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///regret.db'
@@ -91,20 +91,23 @@ def result():
     else:
         category = 'High regret'
 
-    # Build year-by-year chart data
+    # Build chart data with adaptive resolution
     cagr_val = round(crypto_client.fetch_annual_crypto_cagr(record.crypto_symbol) or 0.20, 4)
     n_years = max(1, int(record.years))
-    chart_years = list(range(0, n_years + 1))
-    chart_spent_data = [0.0]
-    chart_invested_data = [0.0]
-    for y in range(1, n_years + 1):
-        s = compute_future_value(record.amount, record.frequency, y, contributions=False)
-        iv = compute_future_value(record.amount, record.frequency, y, rate=cagr_val, contributions=True)
-        chart_spent_data.append(round(s, 2))
-        chart_invested_data.append(round(iv, 2))
+    chart_labels, chart_spent_data, chart_invested_data = generate_chart_data(
+        record.amount, record.frequency, n_years, cagr_val
+    )
+
+    # Score breakdown components (mirrors compute_regret_score logic)
+    multiplier = record.invested_value / record.spent_total if record.spent_total > 0 else 1
+    breakdown = {
+        'growth_gap':  round(min(60, max(0, (multiplier - 1) * 30))),
+        'habit_tax':   {'daily': 25, 'weekly': 15, 'monthly': 10, 'one-time': 0}.get(record.frequency, 0),
+        'crypto_heat': round(min(15, abs(cagr_val) * 50)),
+    }
 
     chart_data = json.dumps({
-        'years': chart_years,
+        'labels': chart_labels,
         'spent': chart_spent_data,
         'invested': chart_invested_data,
         'regret_score': record.regret_score,
@@ -118,6 +121,7 @@ def result():
                            total_opportunity_cost=total_opportunity_cost,
                            category=category,
                            cagr=cagr_val,
+                           breakdown=breakdown,
                            chart_data=chart_data)
 
 if __name__ == '__main__':

@@ -33,6 +33,43 @@
     </div>
   </div>
 
+  {# ── Plain-English explanation ── #}
+  <div class="card" style="padding: 1.5rem 2rem;">
+    <p class="section-title">What does this mean?</p>
+    {% if record.regret_score <= 20 %}
+      <p style="color: #34d399; font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem;">Minimal regret — you're probably fine.</p>
+      <p style="color: var(--muted); font-size: 0.9rem;">This was a low-cost or one-time decision. The gap between what you spent and what you could have earned by investing is small.</p>
+    {% elif record.regret_score <= 50 %}
+      <p style="color: #fbbf24; font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem;">Moderate regret — worth thinking about.</p>
+      <p style="color: var(--muted); font-size: 0.9rem;">There's a noticeable gap between what you spent and what that money could have become. It's not catastrophic, but it adds up over time.</p>
+    {% elif record.regret_score <= 80 %}
+      <p style="color: #fb923c; font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem;">Significant regret — this habit is costly.</p>
+      <p style="color: var(--muted); font-size: 0.9rem;">Regular spending like this is quietly expensive. The same money invested in crypto would have grown substantially — the difference is hard to ignore.</p>
+    {% else %}
+      <p style="color: #f87171; font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem;">High regret — the true cost is much larger than it looks.</p>
+      <p style="color: var(--muted); font-size: 0.9rem;">Frequent, recurring spending at this level has a massive opportunity cost. Your money could have multiplied significantly if invested instead of spent.</p>
+    {% endif %}
+
+    {# ── Score breakdown ── #}
+    <div style="margin-top: 1.25rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+      <div style="background: var(--surface2); border-radius: 10px; padding: 1rem; text-align: center;">
+        <div style="font-size: 1.4rem; font-weight: 800; color: #a78bfa;">{{ breakdown.growth_gap }}<span style="font-size: 0.75rem; color: var(--muted); font-weight: 500;">/60</span></div>
+        <div style="font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.3rem;">Growth Gap</div>
+        <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">How much more your money could be worth</div>
+      </div>
+      <div style="background: var(--surface2); border-radius: 10px; padding: 1rem; text-align: center;">
+        <div style="font-size: 1.4rem; font-weight: 800; color: #fb923c;">{{ breakdown.habit_tax }}<span style="font-size: 0.75rem; color: var(--muted); font-weight: 500;">/25</span></div>
+        <div style="font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.3rem;">Habit Tax</div>
+        <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Penalty for spending repeatedly</div>
+      </div>
+      <div style="background: var(--surface2); border-radius: 10px; padding: 1rem; text-align: center;">
+        <div style="font-size: 1.4rem; font-weight: 800; color: #06b6d4;">{{ breakdown.crypto_heat }}<span style="font-size: 0.75rem; color: var(--muted); font-weight: 500;">/15</span></div>
+        <div style="font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.3rem;">Crypto Heat</div>
+        <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">How fast {{ record.crypto_symbol }} grew this year</div>
+      </div>
+    </div>
+  </div>
+
   {# ── Key stats ── #}
   <div class="stat-grid">
     <div class="stat-card red">
@@ -105,34 +142,39 @@
     Chart.defaults.font.size = 12;
 
     // ── 1. Growth line chart ──
+    // Show points only when few data points; hide for dense series
+    const nPts = d.labels.length;
+    const ptRadius = nPts <= 13 ? 4 : nPts <= 41 ? 2 : 0;
+
     new Chart(document.getElementById('growthChart'), {
       type: 'line',
       data: {
-        labels: d.years.map(y => y === 0 ? 'Start' : 'Year ' + y),
+        labels: d.labels,
         datasets: [
           {
             label: 'If Invested ({{ record.crypto_symbol }})',
             data: d.invested,
             borderColor: '#7c3aed',
-            backgroundColor: 'rgba(124,58,237,0.08)',
+            backgroundColor: 'rgba(124,58,237,0.10)',
             fill: true,
-            tension: 0.4,
-            pointRadius: d.years.length <= 6 ? 5 : 3,
-            pointHoverRadius: 7,
+            tension: 0.3,
+            pointRadius: ptRadius,
+            pointHoverRadius: 6,
             pointBackgroundColor: '#7c3aed',
             borderWidth: 2.5,
           },
           {
-            label: 'Spent',
+            label: 'Total Spent',
             data: d.spent,
             borderColor: '#ef4444',
-            backgroundColor: 'rgba(239,68,68,0.06)',
+            backgroundColor: 'rgba(239,68,68,0.07)',
             fill: true,
-            tension: 0.4,
-            pointRadius: d.years.length <= 6 ? 5 : 3,
-            pointHoverRadius: 7,
+            tension: 0.1,
+            pointRadius: ptRadius,
+            pointHoverRadius: 6,
             pointBackgroundColor: '#ef4444',
-            borderWidth: 2.5,
+            borderWidth: 2,
+            borderDash: [5, 3],
           }
         ]
       },
@@ -164,7 +206,14 @@
                              : v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
             }
           },
-          x: { grid: { color: 'rgba(255,255,255,0.04)' } }
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: {
+              maxTicksLimit: 12,
+              maxRotation: 0,
+              autoSkip: true,
+            }
+          }
         }
       }
     });
